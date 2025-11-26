@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Checkout Abuse Simulator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+    }
+    label {
+      display: block;
+      margin-top: 0.5rem;
+    }
+    input, select {
+      width: 220px;
+      padding: 0.3rem;
+      margin-top: 0.2rem;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.4rem 0.8rem;
+    }
+    pre {
+      background: #111827;
+      color: #e5e7eb;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+      max-width: 600px;
+      overflow: auto;
+    }
+    small {
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+  <h1>Checkout Abuse Simulator</h1>
+  <p>Your backend is working. Try sending a checkout request!</p>
+
+  <form id="checkoutForm">
+    <label>
+      IP:
+      <input id="ipInput" value="1.2.3.4" />
+    </label>
+
+    <label>
+      User-Agent:
+      <input id="uaInput" value="Mozilla" />
+    </label>
+
+    <label>
+      Action:
+      <select id="actionSelect">
+        <option value="CHECKOUT">CHECKOUT</option>
+        <option value="LOGIN">LOGIN</option>
+      </select>
+    </label>
+
+    <p style="margin-top:0.5rem;">
+      <small><strong>Device ID:</strong> <span id="deviceIdDisplay"></span></small>
+    </p>
+
+    <button type="submit">Send</button>
+  </form>
+
+  <pre id="responseBox">{}</pre>
+
+  <script>
+  // -------------------------------
+  // DEVICE ID (already exists)
+  // -------------------------------
+
+  function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return (hash >>> 0).toString(16);
+  }
+
+  function getDeviceId() {
+    let existing = localStorage.getItem("cas_device_id");
+    if (existing) return existing;
+
+    const src = [
+      navigator.userAgent,
+      navigator.language,
+      navigator.platform,
+      screen.width + "x" + screen.height,
+      new Date().getTimezoneOffset(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+    ].join("|");
+
+    const id = "dev-" + hashString(src);
+    localStorage.setItem("cas_device_id", id);
+    return id;
+  }
+
+  const deviceId = getDeviceId();
+  document.getElementById("deviceIdDisplay").textContent = deviceId;
+
+  // -------------------------------
+  // STEP 1 — SESSION TOKEN
+  // -------------------------------
+
+  let session = { sessionId: null, challenge: null };
+
+  async function getSession() {
+    const res = await fetch("/api/session");
+    session = await res.json();
+  }
+
+  // Fetch session token on page load
+  getSession();
+
+  // -------------------------------
+  // STEP 2 — CHECKOUT SEND LOGIC
+  // -------------------------------
+
+  const form = document.getElementById("checkoutForm");
+  const responseBox = document.getElementById("responseBox");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Build telemetry payload
+    const payload = {
+      ip: document.getElementById("ipInput").value,
+      userAgent: document.getElementById("uaInput").value,
+      action: document.getElementById("actionSelect").value,
+      deviceId,
+    };
+
+    // Compute signature = SHA256(challenge + JSON(payload))
+    const encoder = new TextEncoder();
+    const rawData = encoder.encode(session.challenge + JSON.stringify(payload));
+
+    const hashBuffer = await crypto.subtle.digest("SHA-256", rawData);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+    // Wrap request in a signed envelope
+    const wrapped = {
+      sessionId: session.sessionId,
+      challenge: session.challenge,
+      signature,
+      payload,
+    };
+
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(wrapped),
+    });
+
+    const data = await res.json();
+    responseBox.textContent = JSON.stringify(data, null, 2);
+  });
+</script>
+
+</body>
+</html>

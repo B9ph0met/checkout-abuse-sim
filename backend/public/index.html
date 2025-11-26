@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Checkout Abuse Simulator</title>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #020617;
+      --card-soft: #020617;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --text-muted: #9ca3af;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .layout {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 0.25rem 0 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .nav-links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .env-pill {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      margin-left: 0.75rem;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .card-soft {
+      background: var(--card-soft);
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.3rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.55rem 0.9rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    small {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      gap: 0.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-decision-allow {
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+
+    .badge-decision-captcha {
+      background: rgba(234,179,8,0.1);
+      color: var(--yellow);
+      border: 1px solid rgba(234,179,8,0.4);
+    }
+
+    .badge-decision-block {
+      background: rgba(239,68,68,0.1);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.4);
+    }
+
+    .badge-decision-shadow {
+      background: rgba(148,163,184,0.15);
+      color: #e5e7eb;
+      border: 1px solid rgba(148,163,184,0.5);
+    }
+
+    .badge-sig-ok {
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+
+    .badge-sig-replay {
+      background: rgba(234,179,8,0.12);
+      color: var(--yellow);
+      border: 1px solid rgba(234,179,8,0.4);
+    }
+
+    .badge-sig-tampered {
+      background: rgba(239,68,68,0.12);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.4);
+    }
+
+    .badge-sig-unsigned {
+      background: rgba(148,163,184,0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(148,163,184,0.5);
+    }
+
+    .summary-line {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+
+    .summary-secondary {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    details {
+      margin-top: 0.9rem;
+    }
+
+    details > summary {
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    pre {
+      background: #020617;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 0.6rem;
+      color: var(--text);
+      overflow: auto;
+      font-size: 0.8rem;
+      max-height: 260px;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .reason-pill {
+      background: #020817;
+      border-radius: 999px;
+      padding: 0.25rem 0.6rem;
+      display: inline-block;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      margin: 0.15rem 0.2rem 0.15rem 0;
+    }
+
+    .reasons-empty {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <h1>Checkout Abuse Simulator</h1>
+        <p class="subtitle">
+          Generate signed telemetry, send it to the risk engine, and inspect how it scores.
+        </p>
+      </div>
+      <div class="nav-links">
+        <a href="/events.html">Event Log Dashboard →</a>
+        <span class="env-pill">ENV: DEV</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- LEFT COLUMN: form -->
+      <section class="card">
+        <form id="checkoutForm">
+          <label>
+            IP Address
+            <input id="ipInput" value="1.2.3.4" />
+          </label>
+
+          <label>
+            User-Agent
+            <input id="uaInput" value="Mozilla/5.0" />
+          </label>
+
+          <label>
+            Action
+            <select id="actionSelect">
+              <option value="CHECKOUT">CHECKOUT</option>
+              <option value="LOGIN">LOGIN</option>
+            </select>
+          </label>
+
+          <p style="margin-top:0.7rem;">
+            <small>
+              <strong>Device ID:</strong>
+              <span id="deviceIdDisplay"></span>
+            </small>
+          </p>
+
+          <p style="margin-top:0.25rem;">
+            <small>
+              <strong>Session:</strong>
+              <span id="sessionPreview">loading…</span>
+            </small>
+          </p>
+
+          <button type="submit" id="sendBtn">Send Request</button>
+
+          <div class="meta-row">
+            <span><small>Telemetry signing: SHA-256(challenge + payload)</small></span>
+          </div>
+        </form>
+      </section>
+
+      <!-- RIGHT COLUMN: result + breakdown -->
+      <section class="card-soft">
+        <div>
+          <div class="section-title">Result</div>
+          <div class="summary-line" id="summaryLine">
+            No request sent yet.
+          </div>
+          <div class="summary-secondary" id="summarySecondary">
+            When you send a request, you’ll see decision, signature status, and latency here.
+          </div>
+
+          <div style="margin-top:0.5rem; display:flex; gap:0.4rem; flex-wrap:wrap;">
+            <span id="decisionBadge" class="badge" style="display:none;"></span>
+            <span id="signatureBadge" class="badge" style="display:none;"></span>
+          </div>
+
+          <details id="rawResponseSection" open>
+            <summary>Raw response JSON</summary>
+            <pre id="responseBox">{}</pre>
+          </details>
+
+          <details id="payloadSection">
+            <summary>Sent payload</summary>
+            <pre id="payloadBox">{}</pre>
+          </details>
+        </div>
+
+        <div style="margin-top:1.1rem;">
+          <div class="section-title">Risk Breakdown</div>
+          <div id="riskReasonsContainer">
+            <div class="reasons-empty">No request sent yet.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // --- Session for signed telemetry ---
+    let session = { sessionId: null, challenge: null };
+    let lastPayload = null;
+
+    async function getSession() {
+      const res = await fetch("/api/session");
+      session = await res.json();
+      const short = session.sessionId
+        ? session.sessionId.slice(0, 8) + "…"
+        : "unavailable";
+      document.getElementById("sessionPreview").textContent = short;
+    }
+    getSession();
+
+    // --- Simple non-crypto hash for device ID ---
+    function hashString(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return (hash >>> 0).toString(16);
+    }
+
+    function getDeviceId() {
+      let existing = localStorage.getItem("cas_device_id");
+      if (existing) return existing;
+
+      const src = [
+        navigator.userAgent,
+        navigator.language,
+        navigator.platform,
+        screen.width + "x" + screen.height,
+        new Date().getTimezoneOffset(),
+        Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+      ].join("|");
+
+      const id = "dev-" + hashString(src);
+      localStorage.setItem("cas_device_id", id);
+      return id;
+    }
+
+    const deviceId = getDeviceId();
+    document.getElementById("deviceIdDisplay").textContent = deviceId;
+
+    const form = document.getElementById("checkoutForm");
+    const responseBox = document.getElementById("responseBox");
+    const payloadBox = document.getElementById("payloadBox");
+    const summaryLineEl = document.getElementById("summaryLine");
+    const summarySecondaryEl = document.getElementById("summarySecondary");
+    const riskReasonsContainer = document.getElementById("riskReasonsContainer");
+    const decisionBadgeEl = document.getElementById("decisionBadge");
+    const signatureBadgeEl = document.getElementById("signatureBadge");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function setDecisionBadge(decision) {
+      decisionBadgeEl.className = "badge";
+      decisionBadgeEl.style.display = decision ? "inline-flex" : "none";
+
+      if (!decision) return;
+
+      let text = decision;
+      let cls = "";
+
+      switch (decision) {
+        case "ALLOW":
+          cls = "badge-decision-allow";
+          break;
+        case "CAPTCHA":
+          cls = "badge-decision-captcha";
+          break;
+        case "BLOCK":
+          cls = "badge-decision-block";
+          break;
+        case "SHADOW_BAN":
+          cls = "badge-decision-shadow";
+          break;
+        default:
+          break;
+      }
+
+      decisionBadgeEl.classList.add(cls);
+      decisionBadgeEl.textContent = `Decision: ${decision}`;
+    }
+
+    function setSignatureBadge(status) {
+      signatureBadgeEl.className = "badge";
+      signatureBadgeEl.style.display = status ? "inline-flex" : "none";
+
+      if (!status) return;
+
+      let cls = "";
+      switch (status) {
+        case "SIGNED_OK":
+          cls = "badge-sig-ok";
+          break;
+        case "REPLAY":
+          cls = "badge-sig-replay";
+          break;
+        case "TAMPERED":
+          cls = "badge-sig-tampered";
+          break;
+        case "UNSIGNED":
+        default:
+          cls = "badge-sig-unsigned";
+          break;
+      }
+      signatureBadgeEl.classList.add(cls);
+      signatureBadgeEl.textContent = `Signature: ${status}`;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const ip = document.getElementById("ipInput").value;
+      const userAgent = document.getElementById("uaInput").value;
+      const action = document.getElementById("actionSelect").value;
+
+      const payload = { ip, userAgent, action, deviceId };
+      lastPayload = payload;
+
+      // Create signed telemetry: sha256(challenge + JSON.stringify(payload))
+      const encoder = new TextEncoder();
+      const data = encoder.encode((session.challenge || "") + JSON.stringify(payload));
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      const signature = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      const body = {
+        sessionId: session.sessionId,
+        challenge: session.challenge,
+        signature,
+        payload,
+      };
+
+      payloadBox.textContent = JSON.stringify(body, null, 2);
+
+      const start = performance.now();
+      sendBtn.disabled = true;
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const end = performance.now();
+      const latencyMs = Math.round(end - start);
+
+      const json = await res.json();
+      sendBtn.disabled = false;
+
+      // Raw JSON
+      responseBox.textContent = JSON.stringify(json, null, 2);
+
+      const risk = json.risk || { total: 0, reasons: [] };
+      const reasons = risk.reasons || [];
+      const decision = json.decision || "N/A";
+      const sigStatus = json.signatureStatus || "UNSIGNED";
+
+      summaryLineEl.textContent =
+        `${decision} (risk ${risk.total ?? 0}) in ${latencyMs} ms`;
+      summarySecondaryEl.textContent =
+        `IP ${ip}, action ${action}, device ${deviceId}, signature ${sigStatus}.`;
+
+      setDecisionBadge(decision);
+      setSignatureBadge(sigStatus);
+
+      // Risk reasons
+      riskReasonsContainer.innerHTML = "";
+      if (!reasons.length) {
+        const div = document.createElement("div");
+        div.className = "reasons-empty";
+        div.textContent = "No risk signals fired (clean traffic).";
+        riskReasonsContainer.appendChild(div);
+      } else {
+        reasons.forEach((r) => {
+          const pill = document.createElement("span");
+          pill.className = "reason-pill";
+          pill.textContent = `${r.label} (+${r.points})`;
+          riskReasonsContainer.appendChild(pill);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

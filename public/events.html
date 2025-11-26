@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Risk Events Viewer</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #020617;
+      color: #e5e7eb;
+    }
+    h1 { margin-top: 0; }
+    button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      border: none;
+      background: #4b5563;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #111827;
+      padding: 0.4rem 0.6rem;
+      vertical-align: top;
+    }
+    th {
+      background: #111827;
+    }
+    tr:nth-child(even) {
+      background: #030712;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    a {
+      color: #93c5fd;
+    }
+    ul.reasons {
+      margin: 0;
+      padding-left: 1.1rem;
+    }
+    ul.reasons li {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Risk Events Viewer</h1>
+  <p><a href="/">← Back to checkout simulator</a></p>
+  <button id="refreshBtn">Refresh events</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>IP</th>
+        <th>Device ID</th>
+        <th>User Agent</th>
+        <th>Action</th>
+        <th>Score</th>
+        <th>Decision</th>
+        <th>Reasons</th>
+      </tr>
+    </thead>
+    <tbody id="eventsBody">
+      <tr><td colspan="8">No data yet</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    const tbody = document.getElementById("eventsBody");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    async function loadEvents() {
+      tbody.innerHTML = "<tr><td colspan='8'>Loading...</td></tr>";
+      try {
+        const res = await fetch("/api/events");
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = "<tr><td colspan='8'>No events yet</td></tr>";
+          return;
+        }
+
+        tbody.innerHTML = "";
+        for (const ev of data.slice().reverse()) { // newest first
+          const tr = document.createElement("tr");
+
+          const reasons = ev.risk?.reasons || [];
+          const reasonsHtml = reasons.length
+            ? `<ul class="reasons">
+                 ${reasons
+                   .map(r => `<li>+${r.points} — ${r.label}</li>`)
+                   .join("")}
+               </ul>`
+            : "<span style='color:#6b7280'>No reasons</span>";
+
+          tr.innerHTML = `
+            <td>${ev.at ?? ""}</td>
+            <td>${ev.ip ?? ""}</td>
+            <td><code>${ev.deviceId ?? ""}</code></td>
+            <td><code>${(ev.userAgent ?? "").slice(0, 60)}</code></td>
+            <td>${ev.action ?? ""}</td>
+            <td>${ev.risk?.total ?? 0}</td>
+            <td>${ev.decision ?? ""}</td>
+            <td>${reasonsHtml}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      } catch (err) {
+        tbody.innerHTML =
+          "<tr><td colspan='8'>Error loading events: " +
+          (err?.message || err) +
+          "</td></tr>";
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadEvents);
+    loadEvents();
+  </script>
+</body>
+</html>

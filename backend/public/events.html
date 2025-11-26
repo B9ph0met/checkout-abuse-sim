@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Event Log Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #020617;
+      color: #e5e7eb;
+    }
+    .badge-muted {
+  background-color: #4b5563;
+  color: #e5e7eb;
+}
+
+    h1 { margin-top: 0; }
+    button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      border: none;
+      background: #4b5563;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #111827;
+      padding: 0.4rem 0.6rem;
+      vertical-align: top;
+    }
+    th {
+      background: #020617;
+      text-align: left;
+    }
+    tr:nth-child(even) {
+      background: #030712;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    a {
+      color: #93c5fd;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-allow {
+      background: rgba(22, 163, 74, 0.15);
+      color: #4ade80;
+    }
+    .badge-captcha {
+      background: rgba(234, 179, 8, 0.15);
+      color: #facc15;
+    }
+    .badge-block, .badge-shadow {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+    .reason-pill {
+      display: inline-block;
+      margin: 0 0.25rem 0.25rem 0;
+      padding: 0.1rem 0.35rem;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #111827;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Event Log Dashboard</h1>
+  <p>Shows all checkouts, decisions, and risk breakdown.</p>
+  <p><a href="/">← Back to checkout simulator</a></p>
+  <button id="refreshBtn">Refresh events</button>
+
+  <table>
+    <thead>
+  <tr>
+    <th>Time</th>
+    <th>IP / Device</th>
+    <th>User-Agent</th>
+    <th>Action</th>
+    <th>Signature</th>      <!-- NEW -->
+    <th>Risk Score</th>
+    <th>Decision</th>
+    <th>Reasons</th>
+  </tr>
+</thead>
+
+    <tbody id="eventsBody">
+      <tr><td colspan="7">No data yet</td></tr>
+    </tbody>
+  </table>
+
+ <script>
+  const tbody = document.getElementById("eventsBody");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  function decisionBadge(decision) {
+    const span = document.createElement("span");
+    span.textContent = decision || "UNKNOWN";
+    span.classList.add("badge");
+
+    switch (decision) {
+      case "ALLOW":
+        span.classList.add("badge-allow");
+        break;
+      case "CAPTCHA":
+        span.classList.add("badge-captcha");
+        break;
+      case "BLOCK":
+        span.classList.add("badge-block");
+        break;
+      case "SHADOW_BAN":
+        span.classList.add("badge-shadow");
+        break;
+      default:
+        break;
+    }
+    return span;
+  }
+
+  function signatureBadge(status) {
+    const span = document.createElement("span");
+    span.textContent = status || "UNSIGNED";
+    span.classList.add("badge");
+
+    switch (status) {
+      case "SIGNED_OK":
+        // reuse allow-green styling
+        span.classList.add("badge-allow");
+        break;
+      case "REPLAY":
+        // reuse captcha / warning styling
+        span.classList.add("badge-captcha");
+        break;
+      case "TAMPERED":
+        // reuse block-red styling
+        span.classList.add("badge-block");
+        break;
+      case "UNSIGNED":
+      default:
+        // neutral / gray, add in CSS if you want
+        span.classList.add("badge-muted");
+        break;
+    }
+    return span;
+  }
+
+  async function loadEvents() {
+    // +1 column now -> colspan 8
+    tbody.innerHTML = "<tr><td colspan='8'>Loading...</td></tr>";
+    try {
+      const res = await fetch("/api/events");
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='8'>No events yet</td></tr>";
+        return;
+      }
+
+      tbody.innerHTML = "";
+      for (const ev of data) {
+        const tr = document.createElement("tr");
+
+        const risk = ev.risk || { total: 0, reasons: [] };
+        const reasons = risk.reasons || [];
+
+        const tdTime = document.createElement("td");
+        tdTime.textContent = ev.at ?? "";
+
+        const tdIp = document.createElement("td");
+        tdIp.innerHTML =
+          `<div>${ev.ip ?? ""}</div>` +
+          `<div style="font-size:0.75rem;color:#9ca3af;">${ev.deviceId ?? ""}</div>`;
+
+        const tdUa = document.createElement("td");
+        tdUa.innerHTML = `<code>${(ev.userAgent ?? "").slice(0, 80)}</code>`;
+
+        const tdAction = document.createElement("td");
+        tdAction.textContent = ev.action ?? "";
+
+        const tdSignature = document.createElement("td");
+        tdSignature.appendChild(signatureBadge(ev.signatureStatus));
+
+        const tdScore = document.createElement("td");
+        tdScore.textContent = risk.total ?? 0;
+
+        const tdDecision = document.createElement("td");
+        tdDecision.appendChild(decisionBadge(ev.decision));
+
+        const tdReasons = document.createElement("td");
+        if (!reasons.length) {
+          tdReasons.style.color = "#9ca3af";
+          tdReasons.textContent = "No risk signals fired.";
+        } else {
+          reasons.forEach((r) => {
+            const pill = document.createElement("span");
+            pill.className = "reason-pill";
+            pill.textContent = `${r.label} (+${r.points})`;
+            tdReasons.appendChild(pill);
+          });
+        }
+
+        tr.appendChild(tdTime);
+        tr.appendChild(tdIp);
+        tr.appendChild(tdUa);
+        tr.appendChild(tdAction);
+        tr.appendChild(tdSignature); // 👈 NEW
+        tr.appendChild(tdScore);
+        tr.appendChild(tdDecision);
+        tr.appendChild(tdReasons);
+
+        tbody.appendChild(tr);
+      }
+    } catch (err) {
+      tbody.innerHTML =
+        "<tr><td colspan='8'>Error loading events: " +
+        (err?.message || err) +
+        "</td></tr>";
+    }
+  }
+
+  refreshBtn.addEventListener("click", loadEvents);
+  loadEvents();
+</script>
+
+</body>
+</html>
