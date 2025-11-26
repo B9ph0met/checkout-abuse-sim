@@ -1,7 +1,3 @@
-Here is a **FAANG-polished, concise, visually clean README** that includes your two images (`main.png` and `eventlog.png`) **in exactly the right places** — without bloating or boring the reviewer.
-
----
-
 # 🚦 Checkout Abuse Simulator
 
 A compact, production-style **anti-bot** and **abuse-detection** engine.
